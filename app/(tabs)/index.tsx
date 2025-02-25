@@ -1,74 +1,185 @@
-import { Image, StyleSheet, Platform } from 'react-native';
+import React, { useState, useRef } from 'react';
+import { StyleSheet, Text, View, TouchableOpacity, FlatList } from 'react-native';
 
-import { HelloWave } from '@/components/HelloWave';
-import ParallaxScrollView from '@/components/ParallaxScrollView';
-import { ThemedText } from '@/components/ThemedText';
-import { ThemedView } from '@/components/ThemedView';
+const App = () => {
+  const [timer, setTimer] = useState<number>(0);
+  const [isActive, setIsActive] = useState<boolean>(false);
+  const [isPaused, setIsPaused] = useState<boolean>(false);
+  const [laps, setLaps] = useState<number[]>([]);
+  const [lastLapTime, setLastLapTime] = useState<number>(0); // Track time from last lap
+  const countRef = useRef<NodeJS.Timeout | null>(null);
 
-export default function HomeScreen() {
-  return (
-    <ParallaxScrollView
-      headerBackgroundColor={{ light: '#A1CEDC', dark: '#1D3D47' }}
-      headerImage={
-        <Image
-          source={require('@/assets/images/partial-react-logo.png')}
-          style={styles.reactLogo}
-        />
-      }>
-      <ThemedView style={styles.titleContainer}>
-        <ThemedText type="title">Welcome!</ThemedText>
-        <HelloWave />
-      </ThemedView>
-      <ThemedView style={styles.stepContainer}>
-        <ThemedText type="subtitle">Step 1: Try it</ThemedText>
-        <ThemedText>
-          Edit <ThemedText type="defaultSemiBold">app/(tabs)/index.tsx</ThemedText> to see changes.
-          Press{' '}
-          <ThemedText type="defaultSemiBold">
-            {Platform.select({
-              ios: 'cmd + d',
-              android: 'cmd + m',
-              web: 'F12'
-            })}
-          </ThemedText>{' '}
-          to open developer tools.
-        </ThemedText>
-      </ThemedView>
-      <ThemedView style={styles.stepContainer}>
-        <ThemedText type="subtitle">Step 2: Explore</ThemedText>
-        <ThemedText>
-          Tap the Explore tab to learn more about what's included in this starter app.
-        </ThemedText>
-      </ThemedView>
-      <ThemedView style={styles.stepContainer}>
-        <ThemedText type="subtitle">Step 3: Get a fresh start</ThemedText>
-        <ThemedText>
-          When you're ready, run{' '}
-          <ThemedText type="defaultSemiBold">npm run reset-project</ThemedText> to get a fresh{' '}
-          <ThemedText type="defaultSemiBold">app</ThemedText> directory. This will move the current{' '}
-          <ThemedText type="defaultSemiBold">app</ThemedText> to{' '}
-          <ThemedText type="defaultSemiBold">app-example</ThemedText>.
-        </ThemedText>
-      </ThemedView>
-    </ParallaxScrollView>
+  const handleStart = () => {
+    setIsActive(true);
+    setIsPaused(false);
+    countRef.current = setInterval(() => {
+      setTimer((timer) => timer + 1);
+    }, 1000);
+  };
+
+  const handlePause = () => {
+    if (countRef.current) {
+      clearInterval(countRef.current);
+    }
+    setIsPaused(true);
+  };
+
+  const handleContinue = () => {
+    setIsPaused(false);
+    countRef.current = setInterval(() => {
+      setTimer((timer) => timer + 1);
+    }, 1000);
+  };
+
+  const handleReset = () => {
+    if (countRef.current) {
+      clearInterval(countRef.current);
+    }
+    setIsActive(false);
+    setIsPaused(false);
+    setTimer(0);
+    setLaps([]);
+    setLastLapTime(0); // Reset last lap time
+  };
+
+  const handleLap = () => {
+    const lapTime = timer - lastLapTime; // Calculate lap time
+    setLaps((prevLaps) => [...prevLaps, lapTime]); // Store lap time
+    setLastLapTime(timer); // Update last lap time
+  };
+
+  const handleClearLaps = () => {
+    setLaps([]);
+    setLastLapTime(0); // Clear last lap time
+  };
+
+  const formatTime = (time: number): string => {
+    const minutes = Math.floor(time / 60);
+    const seconds = time % 60;
+    return `${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`;
+  };
+
+  const renderLapItem = ({ item }: { item: number }) => (
+    <View style={styles.lapItem}>
+      <Text style={styles.lapText}>{formatTime(item)}</Text>
+    </View>
   );
-}
+
+  return (
+    <View style={styles.container}>
+      <Text style={styles.header}>Stopwatch</Text>
+      <View style={styles.timerContainer}>
+        <Text style={styles.timer}>{formatTime(timer)}</Text>
+      </View>
+
+      <View style={styles.buttonContainer}>
+        {!isActive && !isPaused ? (
+          <TouchableOpacity style={styles.button} onPress={handleStart}>
+            <Text style={styles.buttonText}>Start</Text>
+          </TouchableOpacity>
+        ) : isPaused ? (
+          <>
+            <TouchableOpacity style={styles.button} onPress={handleContinue}>
+              <Text style={styles.buttonText}>Continue</Text>
+            </TouchableOpacity>
+            <TouchableOpacity style={styles.button} onPress={handleReset}>
+              <Text style={styles.buttonText}>Reset</Text>
+            </TouchableOpacity>
+          </>
+        ) : (
+          <>
+            <TouchableOpacity style={styles.button} onPress={handlePause}>
+              <Text style={styles.buttonText}>Pause</Text>
+            </TouchableOpacity>
+            <TouchableOpacity style={styles.button} onPress={handleReset}>
+              <Text style={styles.buttonText}>Reset</Text>
+            </TouchableOpacity>
+          </>
+        )}
+
+        {/* Lap button */}
+        <TouchableOpacity style={styles.button} onPress={handleLap}>
+          <Text style={styles.buttonText}>Lap</Text>
+        </TouchableOpacity>
+        {/* Clear laps button */}
+        <TouchableOpacity style={styles.button} onPress={handleClearLaps}>
+          <Text style={styles.buttonText}>Clear Laps</Text>
+        </TouchableOpacity>
+      </View>
+
+      {/* Display lap times */}
+      {laps.length > 0 && (
+        <View style={styles.lapContainer}>
+          <Text style={styles.lapHeader}>Laps:</Text>
+          <FlatList
+            data={laps}
+            renderItem={renderLapItem}
+            keyExtractor={(item, index) => index.toString()}
+          />
+        </View>
+      )}
+    </View>
+  );
+};
 
 const styles = StyleSheet.create({
-  titleContainer: {
-    flexDirection: 'row',
+  header: {
+    fontSize: 32,
+    fontWeight: 'bold',
+    marginBottom: 20,
+  },
+  container: {
+    flex: 1,
+    backgroundColor: '#fff',
     alignItems: 'center',
-    gap: 8,
+    justifyContent: 'center',
   },
-  stepContainer: {
-    gap: 8,
-    marginBottom: 8,
+  timerContainer: {
+    borderWidth: 4,
+    borderColor: 'black',
+    width: 250,
+    height: 250,
+    borderRadius: 250 / 2,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
-  reactLogo: {
-    height: 178,
-    width: 290,
-    bottom: 0,
-    left: 0,
-    position: 'absolute',
+  timer: {
+    fontSize: 50,
+    color: 'black',
+  },
+  buttonContainer: {
+    flexDirection: 'row',
+    marginTop: 30,
+  },
+  button: {
+    width: 80,
+    height: 80,
+    borderRadius: 80 / 2,
+    backgroundColor: 'blue',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginHorizontal: 20,
+  },
+  buttonText: {
+    fontSize: 20,
+    color: '#fff',
+  },
+  lapContainer: {
+    marginTop: 20,
+    width: '80%',
+    alignItems: 'center',
+  },
+  lapHeader: {
+    fontSize: 24,
+    fontWeight: 'bold',
+  },
+  lapItem: {
+    marginVertical: 5,
+  },
+  lapText: {
+    fontSize: 18,
+    color: 'black',
   },
 });
+
+export default App;
